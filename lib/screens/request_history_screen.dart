@@ -1,0 +1,17 @@
+import 'package:flutter/material.dart';
+
+class RequestHistoryScreen extends StatelessWidget {
+  const RequestHistoryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Request History'),
+      ),
+      body: const Center(
+        child: Text('Request History Screen'),
+      ),
+    );
+  }
+}
