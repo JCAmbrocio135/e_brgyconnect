@@ -34,14 +34,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _loading = true);
 
-    await AuthService.instance.login(
-      _emailCtrl.text.trim(),
-      _passCtrl.text,
+    final error = await AuthService.instance.login(
+      email: _emailCtrl.text.trim(),
+      password: _passCtrl.text,
     );
 
     if (!mounted) return;
 
     setState(() => _loading = false);
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+      return;
+    }
 
     Navigator.pushReplacement(
       context,
@@ -71,9 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'assets/images/logo.png',
                       height: 140,
                     ),
-
                     const SizedBox(height: 8),
-
                     const Text(
                       'Welcome back',
                       style: TextStyle(
@@ -82,9 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: AppColors.primary,
                       ),
                     ),
-
                     const SizedBox(height: 4),
-
                     const Text(
                       'Log in to request barangay documents',
                       style: TextStyle(
@@ -92,9 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.grey,
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
                     CustomTextField(
                       label: 'Email',
                       icon: Icons.email_outlined,
@@ -102,9 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.emailAddress,
                       validator: Validators.email,
                     ),
-
                     const SizedBox(height: 14),
-
                     CustomTextField(
                       label: 'Password',
                       icon: Icons.lock_outline,
@@ -112,17 +111,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       isPassword: true,
                       validator: Validators.password,
                     ),
-
                     const SizedBox(height: 22),
-
                     PrimaryButton(
                       text: 'Log In',
                       isLoading: _loading,
                       onPressed: _login,
                     ),
-
                     const SizedBox(height: 14),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -135,8 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    const RegisterScreen(),
+                                builder: (_) => const RegisterScreen(),
                               ),
                             );
                           },

@@ -30,42 +30,27 @@ class ProfileScreen extends StatelessWidget {
 
     if (ok != true) return;
 
-    AuthService.instance.logout();
+    await AuthService.instance.logout();
 
     if (!context.mounted) return;
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (_) => const LoginScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }
 
-  Widget _infoTile(
-    IconData icon,
-    String label,
-    String value,
-  ) {
+  Widget _infoTile(IconData icon, String label, String value) {
     return ListTile(
-      leading: Icon(
-        icon,
-        color: AppColors.primary,
-      ),
+      leading: Icon(icon, color: AppColors.primary),
       title: Text(
         label,
-        style: const TextStyle(
-          fontSize: 11,
-          color: Colors.grey,
-        ),
+        style: const TextStyle(fontSize: 11, color: Colors.grey),
       ),
       subtitle: Text(
         value,
-        style: const TextStyle(
-          fontSize: 13,
-          color: Colors.black87,
-        ),
+        style: const TextStyle(fontSize: 13, color: Colors.black87),
       ),
       dense: true,
     );
@@ -73,8 +58,6 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = AuthService.instance.currentUser!;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -82,138 +65,119 @@ class ProfileScreen extends StatelessWidget {
         backgroundColor: Colors.white,
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 420,
-              ),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: AppColors.primary,
-                    child: Text(
-                      user.fullName[0].toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 32,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: AuthService.instance.getProfile(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-                  const SizedBox(height: 10),
+            final data = snapshot.data ?? {};
+            final name = (data['name'] as String?) ?? '';
+            final email = (data['email'] as String?) ?? '';
+            final phone = (data['phone'] as String?) ?? '';
+            final address = (data['address'] as String?) ?? '';
+            final birthdate = (data['birthdate'] as String?) ?? '';
+            final isVerified = data['status'] == 'verified';
 
-                  Text(
-                    user.fullName,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  Chip(
-                    avatar: Icon(
-                      user.isVerified
-                          ? Icons.verified
-                          : Icons.hourglass_top,
-                      size: 16,
-                      color: user.isVerified
-                          ? AppColors.green
-                          : Colors.orange,
-                    ),
-                    label: Text(
-                      user.isVerified
-                          ? 'Verified Resident'
-                          : 'Awaiting Verification',
-                      style: const TextStyle(
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppColors.cardBorder,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        _infoTile(
-                          Icons.email_outlined,
-                          'Email',
-                          user.email,
-                        ),
-                        _infoTile(
-                          Icons.phone_outlined,
-                          'Contact Number',
-                          user.contactNo,
-                        ),
-                        _infoTile(
-                          Icons.home_outlined,
-                          'Address',
-                          user.address,
-                        ),
-                        _infoTile(
-                          Icons.cake_outlined,
-                          'Birthdate',
-                          user.birthdate,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Edit profile coming soon',
+            return Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundColor: AppColors.primary,
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                            fontSize: 32,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Edit Profile'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  ElevatedButton.icon(
-                    onPressed: () => _confirmLogout(context),
-                    icon: const Icon(Icons.logout),
-                    label: const Text('Log Out'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      backgroundColor: const Color(0xFFB42318),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 10),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      Chip(
+                        avatar: Icon(
+                          isVerified ? Icons.verified : Icons.hourglass_top,
+                          size: 16,
+                          color: isVerified ? AppColors.green : Colors.orange,
+                        ),
+                        label: Text(
+                          isVerified
+                              ? 'Verified Resident'
+                              : 'Awaiting Verification',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.cardBorder),
+                        ),
+                        child: Column(
+                          children: [
+                            _infoTile(Icons.email_outlined, 'Email', email),
+                            _infoTile(
+                                Icons.phone_outlined, 'Contact Number', phone),
+                            _infoTile(Icons.home_outlined, 'Address', address),
+                            _infoTile(
+                                Icons.cake_outlined, 'Birthdate', birthdate),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Edit profile coming soon'),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Edit Profile'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        onPressed: () => _confirmLogout(context),
+                        icon: const Icon(Icons.logout),
+                        label: const Text('Log Out'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: const Color(0xFFB42318),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

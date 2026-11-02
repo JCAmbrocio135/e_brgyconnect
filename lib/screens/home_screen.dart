@@ -19,11 +19,18 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  late final Future<String> _nameFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameFuture = AuthService.instance.getCurrentName();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -68,14 +75,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome Card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -94,14 +99,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 5),
-                    Text(
-                      AuthService.instance.currentUser?.fullName ??
-                          'Resident',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                    FutureBuilder<String>(
+                      future: _nameFuture,
+                      builder: (context, snapshot) {
+                        final name = snapshot.data;
+                        return Text(
+                          (name == null || name.isEmpty) ? 'Resident' : name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 4),
                     const Text(
@@ -114,9 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 18),
-
               const Text(
                 'Services',
                 style: TextStyle(
@@ -124,10 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 10),
-
-              // Services Row 1
               Row(
                 children: [
                   Expanded(
@@ -138,8 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const RequestDocumentScreen(),
+                            builder: (_) => const RequestDocumentScreen(),
                           ),
                         );
                       },
@@ -154,8 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const TrackRequestScreen(),
+                            builder: (_) => const TrackRequestScreen(),
                           ),
                         );
                       },
@@ -163,10 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 10),
-
-              // Services Row 2
               Row(
                 children: [
                   Expanded(
@@ -177,8 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const RequestHistoryScreen(),
+                            builder: (_) => const RequestHistoryScreen(),
                           ),
                         );
                       },
@@ -201,9 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 22),
-
               const Text(
                 'Recent Request',
                 style: TextStyle(
@@ -211,10 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 10),
-
-              // Recent Request
               ListenableBuilder(
                 listenable: RequestService.instance,
                 builder: (context, _) {
@@ -223,9 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (latest == null) {
                     return const Text(
                       'No requests yet.',
-                      style: TextStyle(
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(color: Colors.grey),
                     );
                   }
 

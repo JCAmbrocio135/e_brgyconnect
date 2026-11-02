@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "998689052183",
+    "project_id": "e-brgyconnect-fefa7",
+    "storage_bucket": "e-brgyconnect-fefa7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:998689052183:android:a955fd43163fe03dfb2e52",
+        "android_client_info": {
+          "package_name": "com.example.e_brgy_connect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrHRnq4Ck2i3A8hTbFZYRRRXO1Uu-Zvz8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

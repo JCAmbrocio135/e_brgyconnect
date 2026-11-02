@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/validators.dart';
+import '../services/auth_service.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/primary_button.dart';
 
@@ -57,13 +58,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _loading = true);
 
-    await Future.delayed(
-      const Duration(seconds: 1),
-    ); // fake; Supabase later
+    final error = await AuthService.instance.register(
+      name: _nameCtrl.text,
+      email: _emailCtrl.text,
+      password: _passCtrl.text,
+      address: _addressCtrl.text,
+      birthdate: _birthCtrl.text,
+      phone: _phoneCtrl.text,
+    );
 
     if (!mounted) return;
 
     setState(() => _loading = false);
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+      return;
+    }
+
+    await AuthService.instance.logout();
+
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -98,31 +115,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       label: 'Full Name',
                       icon: Icons.person_outline,
                       controller: _nameCtrl,
-                      validator: (v) =>
-                          Validators.required(v, 'Full name'),
+                      validator: (v) => Validators.required(v, 'Full name'),
                     ),
                     const SizedBox(height: 14),
-
                     CustomTextField(
                       label: 'Address (Purok / Street)',
                       icon: Icons.home_outlined,
                       controller: _addressCtrl,
-                      validator: (v) =>
-                          Validators.required(v, 'Address'),
+                      validator: (v) => Validators.required(v, 'Address'),
                     ),
                     const SizedBox(height: 14),
-
                     CustomTextField(
                       label: 'Birthdate',
                       icon: Icons.cake_outlined,
                       controller: _birthCtrl,
                       readOnly: true,
                       onTap: _pickBirthdate,
-                      validator: (v) =>
-                          Validators.required(v, 'Birthdate'),
+                      validator: (v) => Validators.required(v, 'Birthdate'),
                     ),
                     const SizedBox(height: 14),
-
                     CustomTextField(
                       label: 'Contact Number',
                       icon: Icons.phone_outlined,
@@ -131,7 +142,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: Validators.phone,
                     ),
                     const SizedBox(height: 14),
-
                     CustomTextField(
                       label: 'Email',
                       icon: Icons.email_outlined,
@@ -140,7 +150,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: Validators.email,
                     ),
                     const SizedBox(height: 14),
-
                     CustomTextField(
                       label: 'Password',
                       icon: Icons.lock_outline,
@@ -149,18 +158,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: Validators.password,
                     ),
                     const SizedBox(height: 14),
-
                     CustomTextField(
                       label: 'Confirm Password',
                       icon: Icons.lock_outline,
                       controller: _confirmCtrl,
                       isPassword: true,
-                      validator: (v) => v != _passCtrl.text
-                          ? 'Passwords do not match'
-                          : null,
+                      validator: (v) =>
+                          v != _passCtrl.text ? 'Passwords do not match' : null,
                     ),
                     const SizedBox(height: 22),
-
                     PrimaryButton(
                       text: 'Register',
                       isLoading: _loading,
