@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
+import 'request_list_screen.dart';
 
 class TrackRequestScreen extends StatelessWidget {
   const TrackRequestScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Track Request'),
-      ),
-      body: const Center(
-        child: Text('Track Request Screen'),
-      ),
+    return const RequestListScreen(
+      title: 'Track Request',
+      activeOnly: true,
     );
   }
 }

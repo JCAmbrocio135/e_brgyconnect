@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+
 import '../core/app_colors.dart';
 import '../core/validators.dart';
+import '../services/auth_service.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/primary_button.dart';
-import 'home_screen.dart';
+import 'main_shell.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+
   bool _loading = false;
 
   @override
@@ -30,13 +33,21 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
-    await Future.delayed(const Duration(seconds: 1)); // fake; Supabase later
+
+    await AuthService.instance.login(
+      _emailCtrl.text.trim(),
+      _passCtrl.text,
+    );
+
     if (!mounted) return;
+
     setState(() => _loading = false);
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      MaterialPageRoute(
+        builder: (_) => const MainShell(),
+      ),
     );
   }
 
@@ -49,13 +60,20 @@ class _LoginScreenState extends State<LoginScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(
+                maxWidth: 420,
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
                   children: [
-                    Image.asset('assets/images/logo.png', height: 140),
+                    Image.asset(
+                      'assets/images/logo.png',
+                      height: 140,
+                    ),
+
                     const SizedBox(height: 8),
+
                     const Text(
                       'Welcome back',
                       style: TextStyle(
@@ -64,12 +82,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: AppColors.primary,
                       ),
                     ),
+
                     const SizedBox(height: 4),
+
                     const Text(
                       'Log in to request barangay documents',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
                     ),
+
                     const SizedBox(height: 24),
+
                     CustomTextField(
                       label: 'Email',
                       icon: Icons.email_outlined,
@@ -77,7 +102,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.emailAddress,
                       validator: Validators.email,
                     ),
+
                     const SizedBox(height: 14),
+
                     CustomTextField(
                       label: 'Password',
                       icon: Icons.lock_outline,
@@ -85,13 +112,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       isPassword: true,
                       validator: Validators.password,
                     ),
+
                     const SizedBox(height: 22),
+
                     PrimaryButton(
                       text: 'Log In',
                       isLoading: _loading,
                       onPressed: _login,
                     ),
+
                     const SizedBox(height: 14),
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -100,12 +131,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: TextStyle(fontSize: 12),
                         ),
                         TextButton(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const RegisterScreen(),
-                            ),
-                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const RegisterScreen(),
+                              ),
+                            );
+                          },
                           child: const Text('Register'),
                         ),
                       ],

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+
 import '../core/app_colors.dart';
+import '../services/auth_service.dart';
+import '../services/request_service.dart';
+import '../widgets/request_card.dart';
 import '../widgets/service_card.dart';
-import '../widgets/status_badge.dart';
-import 'request_document_screen.dart';
-import 'track_request_screen.dart';
-import 'request_history_screen.dart';
 import 'profile_screen.dart';
+import 'request_details_screen.dart';
+import 'request_document_screen.dart';
+import 'request_history_screen.dart';
+import 'track_request_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,18 +19,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int selectedIndex = 0;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
 
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         titleSpacing: 16,
-
         title: Row(
           children: [
             Image.asset(
@@ -34,9 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 40,
               height: 40,
             ),
-
             const SizedBox(width: 10),
-
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -45,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF123B6D),
+                    color: AppColors.primary,
                   ),
                 ),
                 Text(
@@ -59,13 +58,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-
         actions: [
           IconButton(
             onPressed: () {},
             icon: const Icon(
               Icons.notifications_none,
-              color: Color(0xFF123B6D),
+              color: AppColors.primary,
             ),
           ),
         ],
@@ -82,34 +80,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFF4F9),
+                  color: AppColors.welcomeCard,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Welcome back!',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey,
                       ),
                     ),
-
-                    SizedBox(height: 5),
-
+                    const SizedBox(height: 5),
                     Text(
-                      'Juan Dela Cruz',
-                      style: TextStyle(
+                      AuthService.instance.currentUser?.fullName ??
+                          'Resident',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF123B6D),
+                        color: AppColors.primary,
                       ),
                     ),
-
-                    SizedBox(height: 4),
-
-                    Text(
+                    const SizedBox(height: 4),
+                    const Text(
                       'Manage your barangay document requests.',
                       style: TextStyle(
                         fontSize: 12,
@@ -132,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 10),
 
-              // Services
+              // Services Row 1
               Row(
                 children: [
                   Expanded(
@@ -143,15 +138,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const RequestDocumentScreen(),
+                            builder: (_) =>
+                                const RequestDocumentScreen(),
                           ),
                         );
                       },
                     ),
                   ),
-
                   const SizedBox(width: 10),
-
                   Expanded(
                     child: ServiceCard(
                       icon: Icons.assignment_outlined,
@@ -160,7 +154,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const TrackRequestScreen(),
+                            builder: (_) =>
+                                const TrackRequestScreen(),
                           ),
                         );
                       },
@@ -171,6 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 10),
 
+              // Services Row 2
               Row(
                 children: [
                   Expanded(
@@ -181,15 +177,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const RequestHistoryScreen(),
+                            builder: (_) =>
+                                const RequestHistoryScreen(),
                           ),
                         );
                       },
                     ),
                   ),
-
                   const SizedBox(width: 10),
-
                   Expanded(
                     child: ServiceCard(
                       icon: Icons.person_outline,
@@ -219,99 +214,39 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 10),
 
-              // Recent Request Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFD9E2EC),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Barangay Clearance',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
+              // Recent Request
+              ListenableBuilder(
+                listenable: RequestService.instance,
+                builder: (context, _) {
+                  final latest = RequestService.instance.latest;
 
-                        const StatusBadge(
-                          status: 'Pending',
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    const Text(
-                      'Request #REQ-001',
+                  if (latest == null) {
+                    return const Text(
+                      'No requests yet.',
                       style: TextStyle(
-                        fontSize: 11,
                         color: Colors.grey,
                       ),
-                    ),
+                    );
+                  }
 
-                    const Divider(height: 20),
-
-                    TextButton(
-                      onPressed: () {},
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                      ),
-                      child: const Text(
-                        'View Details',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF123B6D),
+                  return RequestCard(
+                    request: latest,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RequestDetailsScreen(
+                            request: latest,
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
+                      );
+                    },
+                  );
+                },
               ),
             ],
           ),
         ),
-      ),
-
-      // Bottom Navigation
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-
-        onDestinationSelected: (index) {
-          setState(() {
-            selectedIndex = index;
-          });
-        },
-
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'Requests',
-          ),
-
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
       ),
     );
   }
