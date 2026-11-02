@@ -48,33 +48,43 @@ class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
     }
   }
 
-  Future<void> _submit() async {
+    Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
 
-    final req = await RequestService.instance.submit(
-      type: _selected!.name,
-      purpose: _purposeCtrl.text.trim(),
-      pickupDate: _pickupDate!,
-    );
+    try {
+      final req = await RequestService.instance.submit(
+        type: _selected!.name,
+        purpose: _purposeCtrl.text.trim(),
+        pickupDate: _pickupDate!,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() => _loading = false);
+      setState(() => _loading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Request ${req.requestNo} submitted!'),
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Request ${req.requestNo} submitted!'),
+        ),
+      );
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => RequestDetailsScreen(request: req),
-      ),
-    );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RequestDetailsScreen(request: req),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => _loading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to submit: $e')),
+      );
+    }
   }
 
   @override
