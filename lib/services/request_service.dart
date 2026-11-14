@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import '../core/request_status.dart';
 import '../models/document_request.dart';
 
 class RequestService extends ChangeNotifier {
@@ -42,7 +43,7 @@ class RequestService extends ChangeNotifier {
           purpose: (d['purpose'] as String?) ?? '',
           pickupDate: pickup is Timestamp ? pickup.toDate() : DateTime.now(),
           createdAt: created is Timestamp ? created.toDate() : DateTime.now(),
-          status: (d['status'] as String?) ?? 'Pending',
+          status: normalizeStatus(d['status']),
           remarks: d['remarks'] as String?,
         );
       }).toList();
@@ -77,7 +78,7 @@ class RequestService extends ChangeNotifier {
       'purpose': purpose,
       'pickupDate': Timestamp.fromDate(pickupDate),
       'createdAt': Timestamp.fromDate(now),
-      'status': 'Pending',
+      'status': kStatusPending,
       'remarks': null,
     });
 
@@ -87,7 +88,7 @@ class RequestService extends ChangeNotifier {
       purpose: purpose,
       pickupDate: pickupDate,
       createdAt: now,
-      status: 'Pending',
+      status: kStatusPending,
     );
   }
 
@@ -115,16 +116,16 @@ class RequestService extends ChangeNotifier {
 
     await _db.runTransaction((tx) async {
       final fresh = await tx.get(ref);
-      final status = fresh.data()?['status'];
+      final status = normalizeStatus(fresh.data()?['status']);
 
-      if (status != 'Pending') {
+      if (status != kStatusPending) {
         throw Exception(
           'This request is already being processed and cannot be cancelled.',
         );
       }
 
       tx.update(ref, {
-        'status': 'Cancelled',
+        'status': kStatusCancelled,
         'remarks': 'Cancelled by resident.',
         'cancelledAt': FieldValue.serverTimestamp(),
       });
