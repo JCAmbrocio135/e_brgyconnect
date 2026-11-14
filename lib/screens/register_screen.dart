@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/validators.dart';
@@ -73,11 +74,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _loadingAddr = true;
       _addrError = null;
     });
+
     try {
       await task();
     } catch (_) {
       _addrError = 'Could not load addresses. Check your internet.';
     }
+
     if (mounted) setState(() => _loadingAddr = false);
   }
 
@@ -87,7 +90,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _city = _barangay = null;
       _cities = _barangays = [];
     });
-    if (v != null) _load(() async => _cities = await _api.cities(v));
+
+    if (v != null) {
+      _load(() async => _cities = await _api.cities(v));
+    }
   }
 
   void _onCity(AddressItem? v) {
@@ -96,7 +102,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _barangay = null;
       _barangays = [];
     });
-    if (v != null) _load(() async => _barangays = await _api.barangays(v));
+
+    if (v != null) {
+      _load(() async => _barangays = await _api.barangays(v));
+    }
   }
 
   Future<void> _pickBirthdate() async {
@@ -123,14 +132,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     ]
         .map((s) => s.trim().replaceAll(RegExp(r'\s+'), ' '))
         .where((s) => s.isNotEmpty);
+
     return parts.join(' ');
   }
 
-  // Combines all address parts into one line for the profile
+  // Builds a clean address while skipping optional blank fields.
   String _fullAddress() {
-    return '${_houseCtrl.text.trim()} ${_streetCtrl.text.trim()}, '
-        'Purok ${_purokCtrl.text.trim()}, '
-        'Brgy. ${_barangay!.name}, ${_city!.name}, ${_place!.name}';
+    final parts = [
+      _houseCtrl.text.trim(),
+      _streetCtrl.text.trim(),
+      'Purok ${_purokCtrl.text.trim()}',
+      'Brgy. ${_barangay!.name}',
+      _city!.name,
+      _place!.name,
+    ].where((part) => part.trim().isNotEmpty).toList();
+
+    return parts.join(', ');
   }
 
   Future<void> _register() async {
@@ -248,12 +265,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       isExpanded: true,
                       decoration: InputDecoration(
                         labelText: 'Extension (Jr., Sr., III...)',
-                        prefixIcon: const Icon(Icons.badge_outlined,
-                            color: AppColors.primary),
+                        prefixIcon: const Icon(
+                          Icons.badge_outlined,
+                          color: AppColors.primary,
+                        ),
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       items: _extensions
                           .map((e) =>
@@ -309,6 +329,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           _loadingAddr && _city != null && _barangays.isEmpty,
                       onChanged: (v) => setState(() => _barangay = v),
                     ),
+
                     if (_addrError != null) ...[
                       const SizedBox(height: 8),
                       Text(
@@ -335,17 +356,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 10),
                     _heading('Street Details'),
                     CustomTextField(
-                      label: 'House No.',
+                      label: 'House No. (optional)',
                       icon: Icons.house_outlined,
                       controller: _houseCtrl,
-                      validator: (v) => Validators.required(v, 'House No.'),
                     ),
                     gap,
                     CustomTextField(
-                      label: 'Street',
+                      label: 'Street (optional)',
                       icon: Icons.signpost_outlined,
                       controller: _streetCtrl,
-                      validator: (v) => Validators.required(v, 'Street'),
                     ),
                     gap,
                     CustomTextField(

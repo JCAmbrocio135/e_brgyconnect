@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../core/app_colors.dart';
 import '../services/auth_service.dart';
+import '../widgets/user_avatar.dart';
 import 'edit_info_screen.dart';
 import 'login_screen.dart';
 
@@ -13,6 +16,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late Future<Map<String, dynamic>> _future;
+  bool _busyPhoto = false;
 
   @override
   void initState() {
@@ -24,6 +28,96 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _future = AuthService.instance.getProfile();
     });
+  }
+
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 400,
+        maxHeight: 400,
+        imageQuality: 70,
+      );
+      if (picked == null) return; // user cancelled
+
+      final bytes = await picked.readAsBytes();
+
+      setState(() => _busyPhoto = true);
+      final error = await AuthService.instance.savePhoto(bytes);
+      if (!mounted) return;
+      setState(() => _busyPhoto = false);
+
+      if (error != null) {
+        _toast(error);
+        return;
+      }
+      _toast('Photo updated.');
+      _reload();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _busyPhoto = false);
+      _toast('Could not open the photo picker.');
+    }
+  }
+
+  Future<void> _removePhoto() async {
+    setState(() => _busyPhoto = true);
+    final error = await AuthService.instance.removePhoto();
+    if (!mounted) return;
+    setState(() => _busyPhoto = false);
+
+    if (error != null) {
+      _toast(error);
+      return;
+    }
+    _toast('Photo removed.');
+    _reload();
+  }
+
+  void _photoOptions(bool hasPhoto) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickPhoto(ImageSource.gallery);
+              },
+            ),
+            if (!kIsWeb)
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take a photo'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickPhoto(ImageSource.camera);
+                },
+              ),
+            if (hasPhoto)
+              ListTile(
+                leading: const Icon(Icons.delete_outline,
+                    color: Color(0xFFB42318)),
+                title: const Text(
+                  'Remove photo',
+                  style: TextStyle(color: Color(0xFFB42318)),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _removePhoto();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _openEdit() async {
@@ -106,6 +200,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final phone = (data['phone'] as String?) ?? '';
             final address = (data['address'] as String?) ?? '';
             final birthdate = (data['birthdate'] as String?) ?? '';
+            final photo = (data['photoBase64'] as String?) ?? '';
             final isVerified = data['status'] == 'verified';
 
             return Center(
@@ -115,17 +210,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   constraints: const BoxConstraints(maxWidth: 420),
                   child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: AppColors.primary,
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: const TextStyle(
-                            fontSize: 32,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          UserAvatar(
+                            photoBase64: photo,
+                            name: name,
+                            radius: 44,
                           ),
-                        ),
+                          if (_busyPhoto)
+                            const CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 10),
                       Text(
@@ -151,7 +248,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: const TextStyle(fontSize: 11),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      TextButton.icon(
+                        onPressed:
+                            _busyPhoto ? null : () => _photoOptions(photo.isNotEmpty),
+                        icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                        label: Text(
+                          photo.isEmpty ? 'Upload Photo' : 'Change Photo',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.white,

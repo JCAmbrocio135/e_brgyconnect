@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/validators.dart';
@@ -39,7 +40,7 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
   String _oldBarangayCode = '';
   bool _ready = false;
   bool _saving = false;
-  bool _legacy = false; // account made before the new address fields
+  bool _legacy = false;
 
   @override
   void initState() {
@@ -91,7 +92,7 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
     return null;
   }
 
-  // Re-selects the saved province, city and barangay (if the account has them)
+  // Re-selects the saved province, city and barangay
   Future<void> _restoreAddress(Map<String, dynamic> p) async {
     await _load(() async {
       _places = await _api.provincesAndNcr();
@@ -118,11 +119,13 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
       _loadingAddr = true;
       _addrError = null;
     });
+
     try {
       await task();
     } catch (_) {
       _addrError = 'Could not load addresses. Check your internet.';
     }
+
     if (mounted) setState(() => _loadingAddr = false);
   }
 
@@ -132,7 +135,10 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
       _city = _barangay = null;
       _cities = _barangays = [];
     });
-    if (v != null) _load(() async => _cities = await _api.cities(v));
+
+    if (v != null) {
+      _load(() async => _cities = await _api.cities(v));
+    }
   }
 
   void _onCity(AddressItem? v) {
@@ -141,17 +147,29 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
       _barangay = null;
       _barangays = [];
     });
-    if (v != null) _load(() async => _barangays = await _api.barangays(v));
+
+    if (v != null) {
+      _load(() async => _barangays = await _api.barangays(v));
+    }
   }
 
+  // Builds a clean address even when House No. or Street is blank.
   String _fullAddress() {
-    return '${_houseCtrl.text.trim()} ${_streetCtrl.text.trim()}, '
-        'Purok ${_purokCtrl.text.trim()}, '
-        'Brgy. ${_barangay!.name}, ${_city!.name}, ${_place!.name}';
+    final parts = [
+      _houseCtrl.text.trim(),
+      _streetCtrl.text.trim(),
+      'Purok ${_purokCtrl.text.trim()}',
+      'Brgy. ${_barangay!.name}',
+      _city!.name,
+      _place!.name,
+    ].where((part) => part.trim().isNotEmpty).toList();
+
+    return parts.join(', ');
   }
 
   Future<String?> _askPassword() async {
     final ctrl = TextEditingController();
+
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -167,7 +185,9 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
             TextField(
               controller: ctrl,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Current password'),
+              decoration: const InputDecoration(
+                labelText: 'Current password',
+              ),
             ),
           ],
         ),
@@ -183,6 +203,7 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
         ],
       ),
     );
+
     ctrl.dispose();
     return (result == null || result.isEmpty) ? null : result;
   }
@@ -192,8 +213,10 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
 
     final emailChanged =
         _emailCtrl.text.trim().toLowerCase() != _oldEmail.toLowerCase();
+
     final moving =
-        _oldBarangayCode.isNotEmpty && _oldBarangayCode != _barangay!.code;
+        _oldBarangayCode.isNotEmpty &&
+        _oldBarangayCode != _barangay!.code;
 
     if (moving) {
       final ok = await showDialog<bool>(
@@ -215,10 +238,12 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
           ],
         ),
       );
+
       if (ok != true) return;
     }
 
     String? password;
+
     if (emailChanged) {
       password = await _askPassword();
       if (password == null) return;
@@ -242,25 +267,36 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
 
     if (error != null) {
       if (!mounted) return;
+
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
       return;
     }
 
     var message = 'Info updated.';
+
     if (emailChanged) {
       final emailError = await AuthService.instance.changeEmail(
         newEmail: _emailCtrl.text,
         password: password!,
       );
+
       message = emailError != null
           ? 'Info saved, but your email was not changed: $emailError'
           : 'Info saved. We sent a link to your new email. Tap it to finish changing your email.';
     }
 
     if (!mounted) return;
+
     setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+
     Navigator.pop(context, true);
   }
 
@@ -338,7 +374,10 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
                             alignment: Alignment.centerLeft,
                             child: Text(
                               'Name and birthdate are verified records. To correct them, please visit the barangay hall.',
-                              style: TextStyle(fontSize: 11, color: Colors.grey),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
                             ),
                           ),
 
@@ -390,8 +429,10 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
                             loading: _loadingAddr &&
                                 _city != null &&
                                 _barangays.isEmpty,
-                            onChanged: (v) => setState(() => _barangay = v),
+                            onChanged: (v) =>
+                                setState(() => _barangay = v),
                           ),
+
                           if (_addrError != null) ...[
                             const SizedBox(height: 8),
                             Text(
@@ -406,25 +447,23 @@ class _EditInfoScreenState extends State<EditInfoScreen> {
                           const SizedBox(height: 10),
                           _heading('Street Details'),
                           CustomTextField(
-                            label: 'House No.',
+                            label: 'House No. (optional)',
                             icon: Icons.house_outlined,
                             controller: _houseCtrl,
-                            validator: (v) =>
-                                Validators.required(v, 'House No.'),
                           ),
                           gap,
                           CustomTextField(
-                            label: 'Street',
+                            label: 'Street (optional)',
                             icon: Icons.signpost_outlined,
                             controller: _streetCtrl,
-                            validator: (v) => Validators.required(v, 'Street'),
                           ),
                           gap,
                           CustomTextField(
                             label: 'Purok / Zone (e.g. 3)',
                             icon: Icons.pin_drop_outlined,
                             controller: _purokCtrl,
-                            validator: (v) => Validators.required(v, 'Purok'),
+                            validator: (v) =>
+                                Validators.required(v, 'Purok'),
                           ),
 
                           const SizedBox(height: 22),

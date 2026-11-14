@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 
 class AuthService {
   AuthService._();
@@ -169,6 +171,45 @@ class AuthService {
       return _message(e.code);
     } catch (_) {
       return 'error: could not change the email. Try again.';
+    }
+  }
+
+  /// Saves a small, already-compressed photo inside the user's document.
+  Future<String?> savePhoto(Uint8List bytes) async {
+    final user = _auth.currentUser;
+    if (user == null) return 'error: not logged in.';
+    if (bytes.length > 300 * 1024) {
+      return 'error: the photo is too large. Try a smaller one.';
+    }
+
+    try {
+      await _db.collection('users').doc(user.uid).update({
+        'photoBase64': base64Encode(bytes),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return null;
+    } on FirebaseException catch (e) {
+      return 'error: ${e.code}';
+    } catch (_) {
+      return 'error: could not save the photo. Try again.';
+    }
+  }
+
+  /// Removes the display photo.
+  Future<String?> removePhoto() async {
+    final user = _auth.currentUser;
+    if (user == null) return 'error: not logged in.';
+
+    try {
+      await _db.collection('users').doc(user.uid).update({
+        'photoBase64': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return null;
+    } on FirebaseException catch (e) {
+      return 'error: ${e.code}';
+    } catch (_) {
+      return 'error: could not remove the photo. Try again.';
     }
   }
 
