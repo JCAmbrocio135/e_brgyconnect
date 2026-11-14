@@ -30,7 +30,8 @@ class RequestListScreen extends StatelessWidget {
                 (r) =>
                     !activeOnly ||
                     (r.status != 'Released' &&
-                        r.status != 'Rejected'),
+                        r.status != 'Rejected' &&
+                        r.status != 'Cancelled'),
               )
               .toList();
 

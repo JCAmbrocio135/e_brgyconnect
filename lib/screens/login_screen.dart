@@ -5,6 +5,7 @@ import '../core/validators.dart';
 import '../services/auth_service.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/primary_button.dart';
+import 'forgot_password_screen.dart';
 import 'main_shell.dart';
 import 'register_screen.dart';
 
@@ -111,7 +112,26 @@ class _LoginScreenState extends State<LoginScreen> {
                       isPassword: true,
                       validator: Validators.password,
                     ),
-                    const SizedBox(height: 22),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ForgotPasswordScreen(
+                                initialEmail: _emailCtrl.text.trim(),
+                              ),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Forgot password?',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     PrimaryButton(
                       text: 'Log In',
                       isLoading: _loading,

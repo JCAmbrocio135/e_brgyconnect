@@ -5,48 +5,51 @@ class ServiceCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final VoidCallback onTap;
+  final bool highlighted;
 
   const ServiceCard({
     super.key,
     required this.icon,
     required this.title,
     required this.onTap,
+    this.highlighted = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 78,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.cardBorder,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: AppColors.primary,
-              size: 22,
-            ),
+    final fg = highlighted ? Colors.white : AppColors.primary;
 
-            const SizedBox(height: 7),
-
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Color(0xFF263238),
+    return Material(
+      color: highlighted ? AppColors.primary : Colors.white,
+      elevation: highlighted ? 3 : 0,
+      shadowColor: AppColors.primary.withValues(alpha: 0.4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: highlighted
+            ? BorderSide.none
+            : const BorderSide(color: AppColors.cardBorder),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: 78,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: fg, size: highlighted ? 26 : 22),
+              const SizedBox(height: 7),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: highlighted ? 11 : 10,
+                  fontWeight: highlighted ? FontWeight.bold : FontWeight.normal,
+                  color: highlighted ? Colors.white : const Color(0xFF263238),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

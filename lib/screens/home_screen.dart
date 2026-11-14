@@ -137,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Expanded(
                     child: ServiceCard(
+                      highlighted: true, // <-- the blue button
                       icon: Icons.note_add_outlined,
                       title: 'Request Document',
                       onTap: () {

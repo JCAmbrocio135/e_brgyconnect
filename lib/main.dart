@@ -18,7 +18,7 @@ class EBrgyConnectApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: false,  
       title: 'E-BrgyConnect',
       theme: ThemeData(
         useMaterial3: true,

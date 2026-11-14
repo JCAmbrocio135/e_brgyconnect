@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/format.dart';
 import '../models/document_request.dart';
+import '../services/request_service.dart';
 import '../widgets/status_badge.dart';
+import '../widgets/progress_tracker.dart';
 
 class RequestDetailsScreen extends StatelessWidget {
   final DocumentRequest request;
@@ -19,6 +21,58 @@ class RequestDetailsScreen extends StatelessWidget {
     'Released',
   ];
 
+  String _headline() {
+    switch (request.status) {
+      case 'Processing':
+        return 'Staff is processing your request';
+      case 'Ready for Pickup':
+        return 'Ready for pickup on ${formatDate(request.pickupDate)}';
+      case 'Released':
+        return 'Document released';
+      default:
+        return 'Request received';
+    }
+  }
+
+  Future<void> _cancel(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel this request?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep Request'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Cancel Request',
+              style: TextStyle(color: Color(0xFFB42318)),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await RequestService.instance.cancel(request.requestNo);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Request ${request.requestNo} cancelled.')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!context.mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
+    }
+  }
+
   Widget _row(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -29,17 +83,11 @@ class RequestDetailsScreen extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 13),
-            ),
+            child: Text(value, style: const TextStyle(fontSize: 13)),
           ),
         ],
       ),
@@ -49,6 +97,8 @@ class RequestDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final current = _steps.indexOf(request.status);
+    final isRejected = request.status == 'Rejected';
+    final isCancelled = request.status == 'Cancelled';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -65,22 +115,20 @@ class RequestDetailsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Request info card
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppColors.cardBorder,
-                      ),
+                      border: Border.all(color: AppColors.cardBorder),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Flexible(
                               child: Text(
@@ -92,28 +140,21 @@ class RequestDetailsScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            StatusBadge(
-                              status: request.status,
-                            ),
+                            StatusBadge(status: request.status),
                           ],
                         ),
                         const Divider(height: 24),
                         _row('Purpose', request.purpose),
-                        _row(
-                          'Filed on',
-                          formatDate(request.createdAt),
-                        ),
-                        _row(
-                          'Pickup date',
-                          formatDate(request.pickupDate),
-                        ),
+                        _row('Filed on', formatDate(request.createdAt)),
+                        _row('Pickup date', formatDate(request.pickupDate)),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 18),
 
-                  if (request.status == 'Rejected')
+                  // Rejected: red remarks box
+                  if (isRejected)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
@@ -129,45 +170,66 @@ class RequestDetailsScreen extends StatelessWidget {
                         ),
                       ),
                     )
-                  else ...[
-                    const Text(
-                      'Progress',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                  // Cancelled: grey notice
+                  else if (isCancelled)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE5E7EB),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'You cancelled this request.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF4B5563),
+                        ),
+                      ),
+                    )
+                  // Otherwise: progress tracker
+                  else
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.cardBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _headline(),
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.green,
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+                          ProgressTracker(steps: _steps, current: current),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 10),
 
-                    for (var i = 0; i < _steps.length; i++)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 6,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              i <= current
-                                  ? Icons.check_circle
-                                  : Icons.radio_button_unchecked,
-                              color: i <= current
-                                  ? AppColors.green
-                                  : Colors.grey,
-                              size: 22,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              _steps[i],
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: i == current
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          ],
+                  // Cancel button: only for Pending requests
+                  if (request.status == 'Pending') ...[
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () => _cancel(context),
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Cancel Request'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFB42318),
+                        side: const BorderSide(color: Color(0xFFB42318)),
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+                    ),
                   ],
                 ],
               ),

@@ -1,12 +1,40 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../services/auth_service.dart';
+import 'edit_info_screen.dart';
 import 'login_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
-  Future<void> _confirmLogout(BuildContext context) async {
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late Future<Map<String, dynamic>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = AuthService.instance.getProfile();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = AuthService.instance.getProfile();
+    });
+  }
+
+  Future<void> _openEdit() async {
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const EditInfoScreen()),
+    );
+    if (saved == true) _reload();
+  }
+
+  Future<void> _confirmLogout() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -32,7 +60,7 @@ class ProfileScreen extends StatelessWidget {
 
     await AuthService.instance.logout();
 
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     Navigator.pushAndRemoveUntil(
       context,
@@ -49,7 +77,7 @@ class ProfileScreen extends StatelessWidget {
         style: const TextStyle(fontSize: 11, color: Colors.grey),
       ),
       subtitle: Text(
-        value,
+        value.isEmpty ? '—' : value,
         style: const TextStyle(fontSize: 13, color: Colors.black87),
       ),
       dense: true,
@@ -66,7 +94,7 @@ class ProfileScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: FutureBuilder<Map<String, dynamic>>(
-          future: AuthService.instance.getProfile(),
+          future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -102,6 +130,7 @@ class ProfileScreen extends StatelessWidget {
                       const SizedBox(height: 10),
                       Text(
                         name,
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -142,15 +171,9 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       OutlinedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Edit profile coming soon'),
-                            ),
-                          );
-                        },
+                        onPressed: _openEdit,
                         icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Edit Profile'),
+                        label: const Text('Edit Info'),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(48),
                           shape: RoundedRectangleBorder(
@@ -160,7 +183,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       ElevatedButton.icon(
-                        onPressed: () => _confirmLogout(context),
+                        onPressed: _confirmLogout,
                         icon: const Icon(Icons.logout),
                         label: const Text('Log Out'),
                         style: ElevatedButton.styleFrom(

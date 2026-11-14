@@ -90,4 +90,45 @@ class RequestService extends ChangeNotifier {
       status: 'Pending',
     );
   }
+
+  /// Cancels a request, but only while it is still Pending.
+  /// Runs as a transaction so it can't overwrite a staff status change.
+  Future<void> cancel(String requestNo) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('Not logged in');
+    }
+
+    // Find this resident's request by its number
+    final found = await _db
+        .collection('requests')
+        .where('uid', isEqualTo: user.uid)
+        .where('requestNo', isEqualTo: requestNo)
+        .limit(1)
+        .get();
+
+    if (found.docs.isEmpty) {
+      throw Exception('Request not found.');
+    }
+
+    final ref = found.docs.first.reference;
+
+    await _db.runTransaction((tx) async {
+      final fresh = await tx.get(ref);
+      final status = fresh.data()?['status'];
+
+      if (status != 'Pending') {
+        throw Exception(
+          'This request is already being processed and cannot be cancelled.',
+        );
+      }
+
+      tx.update(ref, {
+        'status': 'Cancelled',
+        'remarks': 'Cancelled by resident.',
+        'cancelledAt': FieldValue.serverTimestamp(),
+      });
+    });
+    // No notifyListeners() needed: the Firestore listener updates the lists.
+  }
 }
