@@ -1,29 +1,37 @@
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../core/app_colors.dart';
 import '../core/format.dart';
 import '../core/validators.dart';
 import '../models/document_type.dart';
+import '../models/upload_file.dart';
 import '../services/request_service.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/primary_button.dart';
+import '../widgets/requirement_upload_tile.dart';
 import 'request_details_screen.dart';
 
 class RequestDocumentScreen extends StatefulWidget {
   const RequestDocumentScreen({super.key});
 
   @override
-  State<RequestDocumentScreen> createState() =>
-      _RequestDocumentScreenState();
+  State<RequestDocumentScreen> createState() => _RequestDocumentScreenState();
 }
 
 class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _purposeCtrl = TextEditingController();
   final _pickupCtrl = TextEditingController();
-
   DocumentType? _selected;
   DateTime? _pickupDate;
   bool _loading = false;
+  bool _showErrors = false;
+
+  // Picked images, by requirement key
+  final Map<String, Uint8List> _files = {};
 
   @override
   void dispose() {
@@ -32,24 +40,116 @@ class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
     super.dispose();
   }
 
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _onTypeChanged(DocumentType? v) {
+    setState(() {
+      _selected = v;
+      _showErrors = false;
+      // Keep images that still apply (e.g. the Valid ID), drop the rest
+      if (v != null) {
+        _files.removeWhere((key, _) => !v.requirements.any((r) => r.key == key));
+      }
+    });
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
-
     final picked = await showDatePicker(
       context: context,
       initialDate: now.add(const Duration(days: 1)),
       firstDate: now.add(const Duration(days: 1)),
       lastDate: now.add(const Duration(days: 30)),
     );
-
     if (picked != null) {
       _pickupDate = picked;
       _pickupCtrl.text = formatDate(picked);
     }
   }
 
-    Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _pickImage(Requirement r, ImageSource source) async {
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 70,
+      );
+      if (picked == null) return; // user cancelled
+
+      final bytes = await picked.readAsBytes();
+
+      if (!RequestService.isSupportedImage(bytes)) {
+        _toast('Please use a JPG or PNG photo.');
+        return;
+      }
+      if (bytes.length > RequestService.maxImageBytes) {
+        _toast('That photo is too large. Choose a smaller one or retake it.');
+        return;
+      }
+
+      setState(() => _files[r.key] = bytes);
+    } catch (_) {
+      _toast('Could not open the photo picker.');
+    }
+  }
+
+  void _imageOptions(Requirement r) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(r, ImageSource.gallery);
+              },
+            ),
+            if (!kIsWeb)
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take a photo'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(r, ImageSource.camera);
+                },
+              ),
+            if (_files.containsKey(r.key))
+              ListTile(
+                leading: const Icon(Icons.delete_outline,
+                    color: Color(0xFFB42318)),
+                title: const Text(
+                  'Remove',
+                  style: TextStyle(color: Color(0xFFB42318)),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() => _files.remove(r.key));
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submit() async {
+    final valid = _formKey.currentState!.validate();
+    setState(() => _showErrors = true);
+    if (!valid) return;
+
+    final missing = _selected!.requirements
+        .where((r) => !_files.containsKey(r.key))
+        .toList();
+    if (missing.isNotEmpty) {
+      _toast('Please upload: ${missing.map((r) => r.label).join(', ')}');
+      return;
+    }
 
     setState(() => _loading = true);
 
@@ -58,32 +158,24 @@ class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
         type: _selected!.name,
         purpose: _purposeCtrl.text.trim(),
         pickupDate: _pickupDate!,
+        files: [
+          for (final r in _selected!.requirements)
+            UploadFile(r.key, r.label, _files[r.key]!),
+        ],
       );
 
       if (!mounted) return;
-
       setState(() => _loading = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Request ${req.requestNo} submitted!'),
-        ),
-      );
-
+      _toast('Request ${req.requestNo} submitted!');
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => RequestDetailsScreen(request: req),
-        ),
+        MaterialPageRoute(builder: (_) => RequestDetailsScreen(request: req)),
       );
     } catch (e) {
       if (!mounted) return;
-
       setState(() => _loading = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit: $e')),
-      );
+      _toast(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -111,31 +203,23 @@ class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
                       isExpanded: true,
                       decoration: InputDecoration(
                         labelText: 'Document Type',
-                        prefixIcon: const Icon(
-                          Icons.description_outlined,
-                          color: AppColors.primary,
-                        ),
+                        prefixIcon: const Icon(Icons.description_outlined,
+                            color: AppColors.primary),
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       items: DocumentType.all
-                          .map(
-                            (d) => DropdownMenuItem(
-                              value: d,
-                              child: Text(d.name),
-                            ),
-                          )
+                          .map((d) => DropdownMenuItem(
+                                value: d,
+                                child: Text(d.name),
+                              ))
                           .toList(),
-                      onChanged: (v) {
-                        setState(() => _selected = v);
-                      },
+                      onChanged: _onTypeChanged,
                       validator: (v) =>
                           v == null ? 'Select a document type' : null,
                     ),
-
                     if (_selected != null) ...[
                       const SizedBox(height: 12),
                       Container(
@@ -148,67 +232,60 @@ class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Fee: ${_selected!.fee}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            Text('Fee: ${_selected!.fee}',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
                             const SizedBox(height: 4),
                             Text(
-                              'Requirements: ${_selected!.requirements}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
+                                'Requirements: ${_selected!.requirementsText}',
+                                style: const TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
                     ],
-
                     const SizedBox(height: 14),
-
                     CustomTextField(
                       label: 'Purpose (e.g. Employment)',
                       icon: Icons.edit_note,
                       controller: _purposeCtrl,
-                      validator: (v) =>
-                          Validators.required(v, 'Purpose'),
+                      validator: (v) => Validators.required(v, 'Purpose'),
                     ),
-
                     const SizedBox(height: 14),
-
                     CustomTextField(
                       label: 'Preferred Pickup Date',
                       icon: Icons.event_outlined,
                       controller: _pickupCtrl,
                       readOnly: true,
                       onTap: _pickDate,
-                      validator: (v) =>
-                          Validators.required(v, 'Pickup date'),
+                      validator: (v) => Validators.required(v, 'Pickup date'),
                     ),
-
-                    const SizedBox(height: 14),
-
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Upload coming soon'),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.upload_file),
-                      label: const Text('Upload Valid ID'),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Required Uploads',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
                       ),
                     ),
-
-                    const SizedBox(height: 22),
-
+                    const SizedBox(height: 8),
+                    if (_selected == null)
+                      const Text(
+                        'Choose a document type to see what you need to upload.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      )
+                    else
+                      for (final r in _selected!.requirements) ...[
+                        RequirementUploadTile(
+                          requirement: r,
+                          bytes: _files[r.key],
+                          showError: _showErrors,
+                          onTap: () => _imageOptions(r),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    const SizedBox(height: 12),
                     PrimaryButton(
                       text: 'Submit Request',
                       isLoading: _loading,
