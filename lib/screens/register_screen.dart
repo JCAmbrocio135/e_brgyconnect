@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/validators.dart';
@@ -23,7 +25,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _firstCtrl = TextEditingController();
   final _middleCtrl = TextEditingController();
   String _ext = 'None';
-  static const _extensions = ['None', 'Jr.', 'Sr.', 'II', 'III', 'IV', 'V'];
+
+  static const _extensions = [
+    'None',
+    'Jr.',
+    'Sr.',
+    'II',
+    'III',
+    'IV',
+    'V',
+  ];
 
   final _houseCtrl = TextEditingController();
   final _streetCtrl = TextEditingController();
@@ -33,19 +44,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
+
   bool _loading = false;
 
   // Address cascade: Province/NCR -> City -> Barangay
   final _api = AddressService.instance;
-  List<AddressItem> _places = [], _cities = [], _barangays = [];
-  AddressItem? _place, _city, _barangay;
+
+  List<AddressItem> _places = [];
+  List<AddressItem> _cities = [];
+  List<AddressItem> _barangays = [];
+
+  AddressItem? _place;
+  AddressItem? _city;
+  AddressItem? _barangay;
+
   bool _loadingAddr = false;
   String? _addrError;
 
   @override
   void initState() {
     super.initState();
-    _load(() async => _places = await _api.provincesAndNcr());
+    _load(() async {
+      _places = await _api.provincesAndNcr();
+    });
   }
 
   @override
@@ -65,6 +86,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     ]) {
       c.dispose();
     }
+
     super.dispose();
   }
 
@@ -81,18 +103,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _addrError = 'Could not load addresses. Check your internet.';
     }
 
-    if (mounted) setState(() => _loadingAddr = false);
+    if (mounted) {
+      setState(() => _loadingAddr = false);
+    }
   }
 
   void _onPlace(AddressItem? v) {
     setState(() {
       _place = v;
-      _city = _barangay = null;
-      _cities = _barangays = [];
+      _city = null;
+      _barangay = null;
+      _cities = [];
+      _barangays = [];
     });
 
     if (v != null) {
-      _load(() async => _cities = await _api.cities(v));
+      _load(() async {
+        _cities = await _api.cities(v);
+      });
     }
   }
 
@@ -104,7 +132,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     if (v != null) {
-      _load(() async => _barangays = await _api.barangays(v));
+      _load(() async {
+        _barangays = await _api.barangays(v);
+      });
     }
   }
 
@@ -122,7 +152,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // Combines the parts into one clean full name: First Middle Last Ext.
+  // Combines the parts into one clean full name.
   String _fullName() {
     final parts = [
       _firstCtrl.text,
@@ -150,7 +180,141 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return parts.join(', ');
   }
 
+  // Converts 09XXXXXXXXX into +639XXXXXXXXX.
+  String _phoneToE164() {
+  final phone = _phoneCtrl.text.trim().replaceAll(
+    RegExp(r'[\s()-]'),
+    '',
+  );
+
+  // Keep international numbers unchanged.
+  if (phone.startsWith('+')) {
+    return phone;
+  }
+
+  // Convert Philippine 09XXXXXXXXX to +639XXXXXXXXX.
+  return '+63${phone.substring(1)}';
+}
+
+  // Displays the SMS code entry dialog.
+  Future<String?> _askForSmsCode() {
+    final controller = TextEditingController();
+
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Verify Phone Number'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Enter the six-digit verification code sent to your phone.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: const InputDecoration(
+                  labelText: 'SMS verification code',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final code = controller.text.trim();
+
+                if (code.length != 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Enter the six-digit code.'),
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.pop(dialogContext, code);
+              },
+              child: const Text('Verify'),
+            ),
+          ],
+        );
+      },
+    ).whenComplete(controller.dispose);
+  }
+
+  // Sends and verifies the phone number.
+  Future<String?> _startPhoneVerification() {
+    final completer = Completer<String?>();
+
+    AuthService.instance.sendPhoneVerificationCode(
+      phoneNumber: _phoneToE164(),
+
+      onCodeSent: (verificationId) async {
+        while (!completer.isCompleted && mounted) {
+          final code = await _askForSmsCode();
+
+          if (code == null) {
+            if (!completer.isCompleted) {
+              completer.complete(
+                'Phone verification was cancelled.',
+              );
+            }
+            return;
+          }
+
+          final error =
+              await AuthService.instance.verifyAndLinkPhone(
+            verificationId: verificationId,
+            smsCode: code,
+            phoneNumber: _phoneToE164(),
+          );
+
+          if (error == null) {
+            if (!completer.isCompleted) {
+              completer.complete(null);
+            }
+            return;
+          }
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(error)),
+            );
+          }
+        }
+      },
+
+      onVerified: () {
+        if (!completer.isCompleted) {
+          completer.complete(null);
+        }
+      },
+
+      onError: (message) {
+        if (!completer.isCompleted) {
+          completer.complete(message);
+        }
+      },
+    );
+
+    return completer.future;
+  }
+
+  // Registration and phone verification.
   Future<void> _register() async {
+    debugPrint('REGISTER BUTTON TAPPED');
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
@@ -179,23 +343,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (!mounted) return;
 
-    setState(() => _loading = false);
-
     if (error != null) {
+      setState(() => _loading = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error)),
       );
       return;
     }
 
+    // Keep the newly registered user signed in while verifying.
+    final verificationError = await _startPhoneVerification();
+
+    if (!mounted) return;
+
+    if (verificationError != null) {
+  final cleanupError =
+      await AuthService.instance.deleteIncompleteAccount();
+
+  if (!mounted) return;
+
+  setState(() => _loading = false);
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        cleanupError == null
+            ? '$verificationError You can register again using the same email.'
+            : '$verificationError $cleanupError',
+      ),
+    ),
+  );
+  return;
+}
+
+    // Log out only after successful phone verification.
     await AuthService.instance.logout();
 
     if (!mounted) return;
 
+    setState(() => _loading = false);
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Registered! Please wait for staff verification.',
+          'Phone verified! Registration complete. You can now log in.',
         ),
       ),
     );
@@ -239,6 +431,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   children: [
                     _heading('Personal Information'),
+
                     CustomTextField(
                       label: 'Last Name',
                       icon: Icons.person_outline,
@@ -246,6 +439,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: (v) => Validators.name(v, 'Last name'),
                     ),
                     gap,
+
                     CustomTextField(
                       label: 'First Name',
                       icon: Icons.person_outline,
@@ -253,6 +447,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: (v) => Validators.name(v, 'First name'),
                     ),
                     gap,
+
                     CustomTextField(
                       label: 'Middle Name (optional)',
                       icon: Icons.person_outline,
@@ -260,6 +455,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: Validators.optionalName,
                     ),
                     gap,
+
                     DropdownButtonFormField<String>(
                       initialValue: _ext,
                       isExpanded: true,
@@ -276,12 +472,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       items: _extensions
-                          .map((e) =>
-                              DropdownMenuItem(value: e, child: Text(e)))
+                          .map(
+                            (e) => DropdownMenuItem(
+                              value: e,
+                              child: Text(e),
+                            ),
+                          )
                           .toList(),
-                      onChanged: (v) => setState(() => _ext = v ?? 'None'),
+                      onChanged: (v) {
+                        setState(() => _ext = v ?? 'None');
+                      },
                     ),
                     gap,
+
                     CustomTextField(
                       label: 'Birthdate',
                       icon: Icons.cake_outlined,
@@ -291,6 +494,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: (v) => Validators.required(v, 'Birthdate'),
                     ),
                     gap,
+
                     CustomTextField(
                       label: 'Contact Number',
                       icon: Icons.phone_outlined,
@@ -301,6 +505,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     const SizedBox(height: 10),
                     _heading('Address'),
+
                     AddressDropdown(
                       label: 'Province / Metro Manila',
                       icon: Icons.map_outlined,
@@ -310,6 +515,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onChanged: _onPlace,
                     ),
                     gap,
+
                     AddressDropdown(
                       label: 'City / Municipality',
                       icon: Icons.location_city,
@@ -320,6 +526,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onChanged: _onCity,
                     ),
                     gap,
+
                     AddressDropdown(
                       label: 'Barangay',
                       icon: Icons.holiday_village_outlined,
@@ -355,18 +562,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     const SizedBox(height: 10),
                     _heading('Street Details'),
+
                     CustomTextField(
                       label: 'House No. (optional)',
                       icon: Icons.house_outlined,
                       controller: _houseCtrl,
                     ),
                     gap,
+
                     CustomTextField(
                       label: 'Street (optional)',
                       icon: Icons.signpost_outlined,
                       controller: _streetCtrl,
                     ),
                     gap,
+
                     CustomTextField(
                       label: 'Purok / Zone (e.g. 3)',
                       icon: Icons.pin_drop_outlined,
@@ -376,6 +586,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     const SizedBox(height: 10),
                     _heading('Account'),
+
                     CustomTextField(
                       label: 'Email',
                       icon: Icons.email_outlined,
@@ -384,6 +595,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: Validators.email,
                     ),
                     gap,
+
                     CustomTextField(
                       label: 'Password',
                       icon: Icons.lock_outline,
@@ -392,6 +604,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: Validators.password,
                     ),
                     gap,
+
                     CustomTextField(
                       label: 'Confirm Password',
                       icon: Icons.lock_outline,
@@ -400,7 +613,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: (v) =>
                           v != _passCtrl.text ? 'Passwords do not match' : null,
                     ),
+
                     const SizedBox(height: 22),
+
                     PrimaryButton(
                       text: 'Register',
                       isLoading: _loading,
