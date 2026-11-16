@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../core/app_colors.dart';
 import '../services/auth_service.dart';
 import '../widgets/user_avatar.dart';
+import 'about_screen.dart';
 import 'edit_info_screen.dart';
 import 'login_screen.dart';
 
@@ -249,8 +250,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       TextButton.icon(
-                        onPressed:
-                            _busyPhoto ? null : () => _photoOptions(photo.isNotEmpty),
+                        onPressed: _busyPhoto
+                            ? null
+                            : () => _photoOptions(photo.isNotEmpty),
                         icon: const Icon(Icons.photo_camera_outlined, size: 18),
                         label: Text(
                           photo.isEmpty ? 'Upload Photo' : 'Change Photo',
@@ -280,6 +282,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onPressed: _openEdit,
                         icon: const Icon(Icons.edit_outlined),
                         label: const Text('Edit Info'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AboutScreen(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.info_outline),
+                        label: const Text('About & Support'),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(48),
                           shape: RoundedRectangleBorder(
