@@ -34,6 +34,31 @@ class RequestDetailsScreen extends StatelessWidget {
     }
   }
 
+  // Tracker colors: Pending gray, Processing yellow, Ready/Released green
+  Color _fill() {
+    switch (request.status) {
+      case 'Processing':
+        return const Color(0xFFF2B01E);
+      case 'Ready for Pickup':
+      case 'Released':
+        return AppColors.green;
+      default:
+        return const Color(0xFF6B7280);
+    }
+  }
+
+  Color _text() {
+    switch (request.status) {
+      case 'Processing':
+        return const Color(0xFF8A6500);
+      case 'Ready for Pickup':
+      case 'Released':
+        return AppColors.green;
+      default:
+        return const Color(0xFF4B5563);
+    }
+  }
+
   Future<void> _cancel(BuildContext context) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -147,6 +172,24 @@ class RequestDetailsScreen extends StatelessWidget {
                         _row('Purpose', request.purpose),
                         _row('Filed on', formatDate(request.createdAt)),
                         _row('Pickup date', formatDate(request.pickupDate)),
+                        if (request.paymentMethod != 'None') ...[
+                          const Divider(height: 24),
+                          _row('Payment', request.paymentMethod),
+                          if (request.amount > 0)
+                            _row('Amount', '₱${request.amount}'),
+                          _row('Payment status', request.paymentStatus),
+                          if (request.paymentRef != null)
+                            _row('Reference', request.paymentRef!),
+                          if (request.paymentMethod.contains('Demo'))
+                            const Padding(
+                              padding: EdgeInsets.only(top: 6),
+                              child: Text(
+                                'Demo payment: no real money was charged.',
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.grey),
+                              ),
+                            ),
+                        ],
                       ],
                     ),
                   ),
@@ -202,14 +245,19 @@ class RequestDetailsScreen extends StatelessWidget {
                         children: [
                           Text(
                             _headline(),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.green,
+                              color: _text(),
                             ),
                           ),
                           const SizedBox(height: 22),
-                          ProgressTracker(steps: _steps, current: current),
+                          ProgressTracker(
+                            steps: _steps,
+                            current: current,
+                            color: _fill(),
+                            textColor: _text(),
+                          ),
                         ],
                       ),
                     ),

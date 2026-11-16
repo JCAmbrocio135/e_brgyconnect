@@ -1,31 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
-import '../services/auth_service.dart';
 import '../services/request_service.dart';
 import '../widgets/request_card.dart';
 import '../widgets/service_card.dart';
+import '../widgets/welcome_card.dart';
 import 'profile_screen.dart';
 import 'request_details_screen.dart';
 import 'request_document_screen.dart';
 import 'request_history_screen.dart';
 import 'track_request_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  late final Future<String> _nameFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameFuture = AuthService.instance.getCurrentName();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,50 +68,16 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.welcomeCard,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Welcome back!',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    FutureBuilder<String>(
-                      future: _nameFuture,
-                      builder: (context, snapshot) {
-                        final name = snapshot.data;
-                        return Text(
-                          (name == null || name.isEmpty) ? 'Resident' : name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Manage your barangay document requests.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ],
+              // Welcome card with the resident's photo (or first initial)
+              WelcomeCard(
+                onAvatarTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
                 ),
               ),
+
               const SizedBox(height: 18),
+
               const Text(
                 'Services',
                 style: TextStyle(
@@ -132,12 +85,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
               const SizedBox(height: 10),
+
               Row(
                 children: [
                   Expanded(
                     child: ServiceCard(
-                      highlighted: true, // <-- the blue button
+                      highlighted: true, // the blue button
                       icon: Icons.note_add_outlined,
                       title: 'Request Document',
                       onTap: () {
@@ -167,7 +122,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
+
               const SizedBox(height: 10),
+
               Row(
                 children: [
                   Expanded(
@@ -201,7 +158,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
+
               const SizedBox(height: 22),
+
               const Text(
                 'Recent Request',
                 style: TextStyle(
@@ -209,7 +168,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
               const SizedBox(height: 10),
+
               ListenableBuilder(
                 listenable: RequestService.instance,
                 builder: (context, _) {

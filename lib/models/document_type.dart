@@ -8,10 +8,14 @@ class Requirement {
 
 class DocumentType {
   final String name;
-  final String fee;
+  final String fee; // text shown to the resident
+  final int? amount; // pesos; 0 = free; null = varies / pay at the hall
   final List<Requirement> requirements;
 
-  const DocumentType(this.name, this.fee, this.requirements);
+  const DocumentType(this.name, this.fee, this.requirements, {this.amount});
+
+  bool get isFree => amount == 0;
+  bool get canPayOnline => amount != null && amount! > 0;
 
   String get requirementsText => requirements.map((r) => r.label).join(', ');
 
@@ -39,11 +43,14 @@ class DocumentType {
 
   // ---- Documents (fees are samples; each barangay sets its own) ----
   static const all = [
-    DocumentType('Barangay Clearance', '₱50', [validId, residency]),
-    DocumentType('Certificate of Indigency', 'Free', [validId, residency]),
-    DocumentType('Certificate of Residency', '₱30', [validId]),
-    DocumentType('Business Clearance', '₱200', [validId, businessPermit]),
-    DocumentType('Barangay ID', '₱100', [validId, photo1x1]),
+    DocumentType('Barangay Clearance', '₱50', [validId, residency],
+        amount: 50),
+    DocumentType('Certificate of Indigency', 'Free', [validId, residency],
+        amount: 0),
+    DocumentType('Certificate of Residency', '₱30', [validId], amount: 30),
+    DocumentType('Business Clearance', '₱200', [validId, businessPermit],
+        amount: 200),
+    DocumentType('Barangay ID', '₱100', [validId, photo1x1], amount: 100),
     DocumentType('Cedula', 'Based on income (pay at hall)', [validId]),
     DocumentType('Others', 'Varies', [validId]),
   ];

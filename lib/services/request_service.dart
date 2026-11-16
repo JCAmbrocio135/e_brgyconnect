@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../core/request_status.dart';
 import '../models/document_request.dart';
+import '../models/payment_info.dart';
 import '../models/upload_file.dart';
 
 class RequestService extends ChangeNotifier {
@@ -67,6 +67,10 @@ class RequestService extends ChangeNotifier {
           createdAt: created is Timestamp ? created.toDate() : DateTime.now(),
           status: normalizeStatus(d['status']),
           remarks: d['remarks'] as String?,
+          amount: (d['amount'] as num?)?.toInt() ?? 0,
+          paymentMethod: (d['paymentMethod'] as String?) ?? 'None',
+          paymentStatus: (d['paymentStatus'] as String?) ?? 'Not required',
+          paymentRef: d['paymentRef'] as String?,
         );
       }).toList();
 
@@ -79,12 +83,14 @@ class RequestService extends ChangeNotifier {
     });
   }
 
-  /// Saves the request and its uploaded images together (all or nothing).
+  /// Saves the request, its uploaded images, and its payment info together
+  /// (all or nothing).
   Future<DocumentRequest> submit({
     required String type,
     required String purpose,
     required DateTime pickupDate,
     required List<UploadFile> files,
+    PaymentInfo? payment,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -97,7 +103,8 @@ class RequestService extends ChangeNotifier {
         throw Exception('${f.label}: please use a JPG or PNG photo.');
       }
       if (f.bytes.length > maxImageBytes) {
-        throw Exception('${f.label}: the photo is too large. Choose a smaller one.');
+        throw Exception(
+            '${f.label}: the photo is too large. Choose a smaller one.');
       }
     }
 
@@ -124,6 +131,14 @@ class RequestService extends ChangeNotifier {
       'residentName': (profile['name'] as String?) ?? '',
       'barangayCode': (profile['barangayCode'] as String?) ?? '',
       'attachmentKeys': files.map((f) => f.key).toList(),
+
+      // payment (demo)
+      'amount': payment?.amount ?? 0,
+      'paymentMethod': payment?.method ?? 'None',
+      'paymentStatus': payment?.status ?? 'Not required',
+      if (payment?.reference != null) 'paymentRef': payment!.reference,
+      if (payment?.paidAt != null)
+        'paidAt': Timestamp.fromDate(payment!.paidAt!),
     });
 
     for (final f in files) {
@@ -152,6 +167,10 @@ class RequestService extends ChangeNotifier {
       pickupDate: pickupDate,
       createdAt: now,
       status: kStatusPending,
+      amount: payment?.amount ?? 0,
+      paymentMethod: payment?.method ?? 'None',
+      paymentStatus: payment?.status ?? 'Not required',
+      paymentRef: payment?.reference,
     );
   }
 

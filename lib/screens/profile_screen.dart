@@ -1,3 +1,4 @@
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -32,7 +33,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
 
   Future<void> _pickPhoto(ImageSource source) async {
@@ -43,12 +46,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         maxHeight: 400,
         imageQuality: 70,
       );
-      if (picked == null) return; // user cancelled
+
+      if (picked == null) return;
 
       final bytes = await picked.readAsBytes();
 
       setState(() => _busyPhoto = true);
       final error = await AuthService.instance.savePhoto(bytes);
+
       if (!mounted) return;
       setState(() => _busyPhoto = false);
 
@@ -56,6 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _toast(error);
         return;
       }
+
       _toast('Photo updated.');
       _reload();
     } catch (_) {
@@ -67,7 +73,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _removePhoto() async {
     setState(() => _busyPhoto = true);
+
     final error = await AuthService.instance.removePhoto();
+
     if (!mounted) return;
     setState(() => _busyPhoto = false);
 
@@ -75,6 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _toast(error);
       return;
     }
+
     _toast('Photo removed.');
     _reload();
   }
@@ -104,8 +113,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             if (hasPhoto)
               ListTile(
-                leading: const Icon(Icons.delete_outline,
-                    color: Color(0xFFB42318)),
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: Color(0xFFB42318),
+                ),
                 title: const Text(
                   'Remove photo',
                   style: TextStyle(color: Color(0xFFB42318)),
@@ -126,6 +137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context,
       MaterialPageRoute(builder: (_) => const EditInfoScreen()),
     );
+
     if (saved == true) _reload();
   }
 
@@ -179,6 +191,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _verificationChip({
+    required bool verified,
+    required String verifiedLabel,
+    required String pendingLabel,
+  }) {
+    return Chip(
+      avatar: Icon(
+        verified ? Icons.verified : Icons.hourglass_top,
+        size: 16,
+        color: verified ? AppColors.green : Colors.orange,
+      ),
+      label: Text(
+        verified ? verifiedLabel : pendingLabel,
+        style: const TextStyle(fontSize: 11),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -195,6 +225,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return const Center(child: CircularProgressIndicator());
             }
 
+            if (snapshot.hasError) {
+              return const Center(
+                child: Text('Could not load your profile. Please try again.'),
+              );
+            }
+
             final data = snapshot.data ?? {};
             final name = (data['name'] as String?) ?? '';
             final email = (data['email'] as String?) ?? '';
@@ -202,7 +238,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final address = (data['address'] as String?) ?? '';
             final birthdate = (data['birthdate'] as String?) ?? '';
             final photo = (data['photoBase64'] as String?) ?? '';
-            final isVerified = data['status'] == 'verified';
+
+            final phoneVerificationRequired =
+                data['phoneVerificationRequired'] == true;
+            final isPhoneVerified = data['phoneVerified'] == true;
+            final isResidentVerified = data['status'] == 'verified';
 
             return Center(
               child: SingleChildScrollView(
@@ -236,24 +276,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Chip(
-                        avatar: Icon(
-                          isVerified ? Icons.verified : Icons.hourglass_top,
-                          size: 16,
-                          color: isVerified ? AppColors.green : Colors.orange,
-                        ),
-                        label: Text(
-                          isVerified
-                              ? 'Verified Resident'
-                              : 'Awaiting Verification',
-                          style: const TextStyle(fontSize: 11),
-                        ),
+
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          if (phoneVerificationRequired)
+                            _verificationChip(
+                              verified: isPhoneVerified,
+                              verifiedLabel: 'Phone Number Verified',
+                              pendingLabel: 'Phone Verification Pending',
+                            ),
+                          _verificationChip(
+                            verified: isResidentVerified,
+                            verifiedLabel: 'Verified Resident',
+                            pendingLabel: 'Awaiting Resident Verification',
+                          ),
+                        ],
                       ),
+
                       TextButton.icon(
                         onPressed: _busyPhoto
                             ? null
                             : () => _photoOptions(photo.isNotEmpty),
-                        icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                        icon: const Icon(
+                          Icons.photo_camera_outlined,
+                          size: 18,
+                        ),
                         label: Text(
                           photo.isEmpty ? 'Upload Photo' : 'Change Photo',
                           style: const TextStyle(fontSize: 12),
@@ -270,10 +320,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             _infoTile(Icons.email_outlined, 'Email', email),
                             _infoTile(
-                                Icons.phone_outlined, 'Contact Number', phone),
-                            _infoTile(Icons.home_outlined, 'Address', address),
+                              Icons.phone_outlined,
+                              'Contact Number',
+                              phone,
+                            ),
                             _infoTile(
-                                Icons.cake_outlined, 'Birthdate', birthdate),
+                              Icons.home_outlined,
+                              'Address',
+                              address,
+                            ),
+                            _infoTile(
+                              Icons.cake_outlined,
+                              'Birthdate',
+                              birthdate,
+                            ),
                           ],
                         ),
                       ),

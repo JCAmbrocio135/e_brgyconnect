@@ -7,11 +7,14 @@ import '../core/app_colors.dart';
 import '../core/format.dart';
 import '../core/validators.dart';
 import '../models/document_type.dart';
+import '../models/payment_info.dart';
 import '../models/upload_file.dart';
 import '../services/request_service.dart';
 import '../widgets/custom_text_field.dart';
+import '../widgets/payment_method_selector.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/requirement_upload_tile.dart';
+import 'demo_checkout_screen.dart';
 import 'request_details_screen.dart';
 
 class RequestDocumentScreen extends StatefulWidget {
@@ -33,6 +36,10 @@ class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
   // Picked images, by requirement key
   final Map<String, Uint8List> _files = {};
 
+  // Payment
+  PayMethod? _method;
+  PaymentInfo? _paid; // demo payment already done (kept if a submit is retried)
+
   @override
   void dispose() {
     _purposeCtrl.dispose();
@@ -48,6 +55,8 @@ class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
     setState(() {
       _selected = v;
       _showErrors = false;
+      _method = null;
+      _paid = null;
       // Keep images that still apply (e.g. the Valid ID), drop the rest
       if (v != null) {
         _files.removeWhere((key, _) => !v.requirements.any((r) => r.key == key));
@@ -138,6 +147,33 @@ class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
     );
   }
 
+  // Returns the payment to save, or null if the resident backed out.
+  Future<PaymentInfo?> _resolvePayment() async {
+    final t = _selected!;
+
+    if (t.isFree) return PaymentInfo.notRequired();
+    if (!t.canPayOnline) return PaymentInfo.payAtHall();
+
+    final m = _method;
+    if (m == null) {
+      _toast('Please choose a payment option.');
+      return null;
+    }
+    if (m == PayMethod.hall) return PaymentInfo.payAtHall(t.amount!);
+
+    // Already paid in this session (the submit failed and is being retried)
+    if (_paid != null && _paid!.method == m.label) return _paid;
+
+    final result = await Navigator.push<PaymentInfo>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DemoCheckoutScreen(type: t, method: m),
+      ),
+    );
+    if (result != null) _paid = result;
+    return result;
+  }
+
   Future<void> _submit() async {
     final valid = _formKey.currentState!.validate();
     setState(() => _showErrors = true);
@@ -151,6 +187,10 @@ class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
       return;
     }
 
+    // Payment comes after the form and uploads are complete
+    final payment = await _resolvePayment();
+    if (payment == null || !mounted) return;
+
     setState(() => _loading = true);
 
     try {
@@ -158,6 +198,7 @@ class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
         type: _selected!.name,
         purpose: _purposeCtrl.text.trim(),
         pickupDate: _pickupDate!,
+        payment: payment,
         files: [
           for (final r in _selected!.requirements)
             UploadFile(r.key, r.label, _files[r.key]!),
@@ -285,7 +326,16 @@ class _RequestDocumentScreenState extends State<RequestDocumentScreen> {
                         ),
                         const SizedBox(height: 10),
                       ],
-                    const SizedBox(height: 12),
+                    PaymentMethodSelector(
+                      type: _selected,
+                      method: _method,
+                      showError: _showErrors,
+                      onChanged: (m) => setState(() {
+                        _method = m;
+                        _paid = null;
+                      }),
+                    ),
+                    const SizedBox(height: 18),
                     PrimaryButton(
                       text: 'Submit Request',
                       isLoading: _loading,
